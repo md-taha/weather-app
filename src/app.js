@@ -1,4 +1,3 @@
-// src/app.js
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
@@ -113,7 +112,12 @@ app.get('/weather', async (req, res) => {
   }
 });
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Weather app is running on http://localhost:${PORT}`);
-});
+// Export the app for testing purposes
+if (require.main === module) {
+  // Start the server only when the file is executed directly
+  app.listen(PORT, () => {
+    console.log(`Weather app is running on http://localhost:${PORT}`);
+  });
+} else {
+  module.exports = app;  // This will allow testing without starting the server
+}
