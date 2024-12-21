@@ -17,16 +17,4 @@ spec:
           image: taha2606/weather-app:latest
           ports:
             - containerPort: 3000
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: weather-app-service
-spec:
-  type: NodePort
-  selector:
-    app: weather-app
-  ports:
-    - port: 3000
-      targetPort: 3000
-      nodePort: 30001
+
