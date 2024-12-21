@@ -82,4 +82,4 @@ jobs:
           fi
       - name: Get Minikube service URL
         run: |
-            minikube service weather-app --url  
+            minikube service weather-app-service --url  
