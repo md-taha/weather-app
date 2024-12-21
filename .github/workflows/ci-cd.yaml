@@ -80,3 +80,6 @@ jobs:
             echo "Deployment failed"
             exit 1
           fi
+      - name: Get Minikube service URL
+        run: |
+            minikube service weather-app --url  
