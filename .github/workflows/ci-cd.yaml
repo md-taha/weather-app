@@ -70,6 +70,13 @@ jobs:
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f k8s/deployment.yaml
+          kubectl rollout status deployment/weather-app # Wait for deployment to complete
+
+      # Check if deployment was successful
+      - name: Check deployment status
+        run: |
+          kubectl get pods
+          kubectl get svc
 
       # Notify Deployment Status
       - name: Notify Deployment Status
@@ -80,6 +87,10 @@ jobs:
             echo "Deployment failed"
             exit 1
           fi
+
+      # Get Minikube service URL
       - name: Get Minikube service URL
         run: |
-            minikube service weather-app-service  
+            MINIKUBE_IP=$(minikube ip)
+            MINIKUBE_PORT=$(kubectl get svc weather-app-service -o jsonpath='{.spec.ports[0].nodePort}')
+            echo "Service is available at http://$MINIKUBE_IP:$MINIKUBE_PORT"
