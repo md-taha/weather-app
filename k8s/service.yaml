@@ -3,10 +3,10 @@ kind: Service
 metadata:
   name: weather-app-service
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: weather-app
   ports:
-    - port: 3000
-      targetPort: 3000
-      nodePort: 30001
+  - protocol: TCP
+    port: 80
+    targetPort: 3000

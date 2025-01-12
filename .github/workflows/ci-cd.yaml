@@ -1,3 +1,102 @@
+# name: CI/CD Pipeline
+
+# on:
+#   pull_request:
+#     branches:
+#       - main
+#   push:
+#     branches:
+#       - main
+
+# jobs:
+#   test:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v2
+#       - name: Set up Node.js
+#         uses: actions/setup-node@v2
+#         with:
+#           node-version: 16
+#       - name: Install dependencies
+#         run: npm install
+#       - name: Fix permissions
+#         run: chmod +x ./node_modules/.bin/jest  
+#       - name: Run tests
+#         run: npm test
+
+#   build-and-deploy:
+#     needs: test
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+
+
+#       - name: Install Minikube
+#         run: |
+#           curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+#           chmod +x minikube
+#           sudo mv minikube /usr/local/bin/
+
+
+#       - name: Start Minikube
+#         run: |
+#           minikube start --driver=docker
+
+#       - name: Set up Docker environment for Minikube
+#         run: |
+#           eval $(minikube -p minikube docker-env)
+
+
+#       - name: Build Docker image
+#         run: |
+#           docker build -t weather-app:latest .
+
+      
+#       - name: Load Docker image into Minikube
+#         run: |
+#           minikube image load weather-app:latest
+
+      
+#       - name: Install kubectl
+#         run: |
+#           curl -LO "https://storage.googleapis.com/kubernetes-release/release/v1.24.0/bin/linux/amd64/kubectl"
+#           chmod +x kubectl
+#           sudo mv kubectl /usr/local/bin/
+
+      
+#       - name: Deploy to Kubernetes
+#         run: |
+#           kubectl apply -f k8s/deployment.yaml
+#           kubectl apply -f k8s/service.yaml
+#           kubectl rollout status deployment/weather-app # Wait for deployment to complete
+
+      
+#       - name: Check deployment status
+#         run: |
+#           kubectl get pods
+#           kubectl get svc
+
+      
+#       - name: Notify Deployment Status
+#         run: |
+#           if [[ $(kubectl get deployment weather-app -o jsonpath='{.status.availableReplicas}') -gt 0 ]]; then
+#             echo "Deployment successful"
+#           else
+#             echo "Deployment failed"
+#             exit 1
+#           fi
+
+      
+#       - name: Get Minikube service URL
+#         run: |
+#             MINIKUBE_IP=$(minikube ip)
+#             MINIKUBE_PORT=$(kubectl get svc weather-app-service -o jsonpath='{.spec.ports[0].nodePort}')
+#             echo "Service is available at http://$MINIKUBE_IP:$MINIKUBE_PORT"
+
+
+
 name: CI/CD Pipeline
 
 on:
@@ -32,53 +131,48 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-
-      - name: Install Minikube
-        run: |
-          curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-          chmod +x minikube
-          sudo mv minikube /usr/local/bin/
-
-
-      - name: Start Minikube
-        run: |
-          minikube start --driver=docker
-
-      - name: Set up Docker environment for Minikube
-        run: |
-          eval $(minikube -p minikube docker-env)
-
+      # Step 1: Set up Docker environment
+      - name: Log in to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build Docker image
         run: |
-          docker build -t weather-app:latest .
+          docker build -t taha2606/weather-app:latest .
 
-      
-      - name: Load Docker image into Minikube
+      - name: Push Docker image to DockerHub
         run: |
-          minikube image load weather-app:latest
+          docker push taha2606/weather-app:latest
 
-      
-      - name: Install kubectl
+      # Step 2: Set up AWS CLI and configure credentials for EKS
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      # Step 3: Update kubeconfig for EKS
+      - name: Update kubeconfig for EKS
         run: |
-          curl -LO "https://storage.googleapis.com/kubernetes-release/release/v1.24.0/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/
+          aws eks --region ap-south-1 update-kubeconfig --name weather-app-cluster
 
-      
-      - name: Deploy to Kubernetes
+      # Step 4: Deploy to EKS (Kubernetes)
+      - name: Deploy to EKS
         run: |
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
           kubectl rollout status deployment/weather-app # Wait for deployment to complete
 
-      
+      # Step 5: Check deployment status
       - name: Check deployment status
         run: |
           kubectl get pods
           kubectl get svc
 
-      
+      # Step 6: Notify deployment status
       - name: Notify Deployment Status
         run: |
           if [[ $(kubectl get deployment weather-app -o jsonpath='{.status.availableReplicas}') -gt 0 ]]; then
@@ -88,9 +182,8 @@ jobs:
             exit 1
           fi
 
-      
-      - name: Get Minikube service URL
+      # Step 7: Get the Load Balancer URL (if using LoadBalancer type service)
+      - name: Get Load Balancer URL
         run: |
-            MINIKUBE_IP=$(minikube ip)
-            MINIKUBE_PORT=$(kubectl get svc weather-app-service -o jsonpath='{.spec.ports[0].nodePort}')
-            echo "Service is available at http://$MINIKUBE_IP:$MINIKUBE_PORT"
+          EXTERNAL_IP=$(kubectl get svc weather-app-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Service is available at http://$EXTERNAL_IP"
