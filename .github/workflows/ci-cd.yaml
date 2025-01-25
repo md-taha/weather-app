@@ -174,4 +174,4 @@ jobs:
       # Step 5: Expose Minikube service
       - name: Expose Minikube service
         run: |
-          minikube service weather-app-service --url
+          minikube service weather-app-service-1 --url
