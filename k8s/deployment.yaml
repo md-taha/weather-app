@@ -19,3 +19,5 @@ spec:
         image: taha2606/weather-app:latest
         ports:
         - containerPort: 3000
+
+
